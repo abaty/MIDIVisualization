@@ -1,0 +1,9 @@
+using ffmpeg (installed w/ imageMagick) from windows cmd line
+
+see docmentation like: https://trac.ffmpeg.org/wiki/Slideshow
+
+should use 25-30fps,
+1280x720 resolution is good
+
+//example of something that has sound, correct image resolution, etc (seems to have issue in VLC, but OK in windows media player)
+ffmpeg -start_number 100000 -framerate 10 -i Fugue%06d.png  -i Fugue.wav -c:v libx264 -c:a aac -b:a 192k -pix_fmt yuv420p -strict -2  out.mp4
