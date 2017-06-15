@@ -18,6 +18,7 @@
 #include <thread>
 #include <mutex>
 #include <iomanip>
+#include <chrono>
 
 using namespace cimg_library;
 
@@ -123,6 +124,7 @@ void makeVisual(bool doVideo = false)
 				if (completedFrames[i] != assignedFrames[i]) isStillWorking = isStillWorking || true;
 			}
 			if (!isStillWorking) break;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 			if (((std::clock() - messageTimer) / (double)CLOCKS_PER_SEC) > timeBetweenThreadUpdates) {
 				completed.lock();

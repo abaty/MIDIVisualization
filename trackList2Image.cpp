@@ -6,13 +6,9 @@
 #include <vector>
 #include <cmath>
 
-void setColor(unsigned char R, unsigned char G, unsigned char B, int x, int y, std::vector< std::vector< std::vector < unsigned char > > >& imageValues) {
-	std::vector< unsigned char > RGBColorTemp;
-	RGBColorTemp.push_back(B);
-	RGBColorTemp.push_back(G);
-	RGBColorTemp.push_back(R);
-	imageValues.at(x).erase(imageValues.at(x).begin() + y);
-	imageValues.at(x).insert(imageValues.at(x).begin() + y,RGBColorTemp);
+inline void setColor(unsigned char R, unsigned char G, unsigned char B, int x, int y, std::vector< std::vector< std::vector < unsigned char > > >& imageValues) {
+	std::vector< unsigned char > RGBColorTemp{ B,G,R };
+	imageValues.at(x).at(y) = RGBColorTemp;
 }
 
 void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vector< std::vector < unsigned char > > >& imageValues) {

@@ -18,9 +18,9 @@ bool noFrameScanning = false;//false means that every frame image is output with
 
 //video settings
 bool doMultiThreading = true;
-const int nThreads = 6;
+const int nThreads = 7;
 double timeBetweenThreadUpdates = 20;
-int startingFrame = 3640;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
+int startingFrame = 3769;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
 bool makeVideo = true;
 int vidnPixX = 1280;
 int vidnPixY = 720;
