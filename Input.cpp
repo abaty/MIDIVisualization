@@ -116,5 +116,9 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 		}
 	}
 
+	/*for (unsigned int i = 0; i < trackList.at(25).GetNumberOfNotes(); i++) {
+		std::cout << i << " " << trackList.at(25).GetNote(i).pitch << " " << trackList.at(25).GetNote(i).pitch << " " << trackList.at(25).GetNote(i).beginning << " " << trackList.at(25).GetNote(i).end << std::endl;
+	}*/
+
 	return;
 }

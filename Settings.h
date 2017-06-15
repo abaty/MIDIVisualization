@@ -1,15 +1,26 @@
 #pragma once
 #include<string>
+#include<mutex>
 
 std::string inputFile = "testFiles/FugueMovie/Fugue";
 
+/*TODO
+- remove temporary bitmap if possible (probably hard?)
+- improve highlighting
+- barlines
+*/
+
 //debugging and useful items
-bool doAlternateFrameBGColor = true;//for frame scrolling debug
-bool stopEarly = true;
-int stopAfterNFrames = 10;
+bool doAlternateFrameBGColor = false;//for frame scrolling debug
+bool stopEarly = false;
+int stopAfterNFrames = 150;
 bool noFrameScanning = false;//false means that every frame image is output with the 0 of hte x axis redefined in order to give smooth video
 
 //video settings
+bool doMultiThreading = true;
+const int nThreads = 6;
+double timeBetweenThreadUpdates = 20;
+int startingFrame = 3640;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
 bool makeVideo = true;
 int vidnPixX = 1280;
 int vidnPixY = 720;
@@ -46,9 +57,6 @@ unsigned char colorArrayLight[3][12] = { { 255,255,255,255,255,255,255,255,255,2
 unsigned char staffColor[3] = { 111,111,111 };
 unsigned char stavePitch[10] = {43,47,50,53,57,64,67,71,74,77};
 
-const float tempoScale = 100;
-
-
 //note struct
 struct noteDat {
 	int beginning;
@@ -56,3 +64,15 @@ struct noteDat {
 	unsigned char pitch;
 	unsigned char velocity;
 };
+
+const float tempoScale = 100;
+
+//multithreading diagnostic structures
+int assignedFrames[nThreads] = { 0 };
+int completedFrames[nThreads] = { 0 };
+double totalExecutionTime[nThreads] = { 0 };
+int threadStartingFrame[nThreads] = { 0 };
+int lastThreadFrame[nThreads] = { 0 };
+
+//multithreading safety mutexs
+std::mutex completed, execTime;

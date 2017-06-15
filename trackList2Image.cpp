@@ -93,7 +93,8 @@ void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vect
 	return;
 }
 
-void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vector< std::vector < unsigned char > > >& imageValues, int n, int nFrames, double midiUnitsPerFrame) {
+//render full frame should be true the first time this is called, but then can be set to false to speed up stuff
+void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vector< std::vector < unsigned char > > >& imageValues, int n, int nFrames, double midiUnitsPerFrame, bool renderFullFrame = false) {
 	//get usable area inside margins
 	const int xRange = nPixX;
 	const int yRange = nPixY - yBufferSizeBottom - yBufferSizeTop;
@@ -134,7 +135,8 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 	//because we are doing this in a scanning way through our array, this becomes (n-1)*midiUnitsPerFrame*midi2pix % (nPixX) to (n*midiUnitsPerFrame*midi2pix)-1 % (nPixX)
 	//must take wrap-around into account here!
 	//blackout a set of columns that have gone out the back of the frame, and use them to specify new information at the front of the frame (keep rest unchanged)
-	if (n != 0) {//not needed for first frame
+	
+	if (!renderFullFrame) {//not needed for first frame
 		int boundary1 = (int)((n - 1)*midiUnitsPerFrame*midi2pix) % (nPixX);//inclusive
 		int boundary2 = (int)((n*midiUnitsPerFrame*midi2pix) - 1) % (nPixX);//inclusive
 
@@ -182,12 +184,13 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 	}
 	//std::cout << "Initialization Done!" << std::endl;
 
-	std::cout << "Starting to put tracks into frame..." << std::endl;
+	if(!doMultiThreading)  std::cout << "Starting to put tracks into frame..." << std::endl;
 	for (unsigned int i = 0; i < trackList.size(); i++) {
 	//for (unsigned int i = 2; i < 3; i++) {//for debug
 		int nNotes = trackList.at(i).GetNumberOfNotes();
-		if( nNotes > 0 ) std::cout << "     Making image for track " << i << " which has " << nNotes << " remaining notes." << std::endl;
-		for (int j = 0; j < nNotes; j++) {
+		if( nNotes > 0 && !doMultiThreading) std::cout << "     Making image for track " << i << " which has " << nNotes << " remaining notes." << std::endl;
+		int deletedNotes = 0;
+		for (int j = 0; j < nNotes-deletedNotes; j++) {
 			//for (int j = 0; j < 10; j++) {//for debug
 			//if (j % 100 == 0) std::cout << " On note " << j+1 << " out of " << nNotes << std::endl;
 		
@@ -197,26 +200,30 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 			xEnd = xEnd - (((xEnd - xStart)>1) ? 1 : 0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
 			xEnd = xEnd - (((xEnd - xStart)>15) ? 1 : 0); //subtract 1 extra pixel to put some space for longer notes
 			xEnd = xEnd - (((xEnd - xStart)>30) ? 1 : 0); //subtract 1 extra pixel to put some space for longer notes
-
 			
-			bool isStartNotInNewFrame = (n != 0) && (xStart > ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX));//continue if note is not in new part of frame yet
-			isStartNotInNewFrame = isStartNotInNewFrame || ((n == 0) && (xStart >= nPixX));// slightly larger range for first frame
-			bool isEndNotInNewFrame = (n != 0) && (xEnd < ((int)((n - 1)*midiUnitsPerFrame*midi2pix) + nPixX));
+			bool isStartNotInNewFrame = (xStart >((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX));//continue if note is not in new part of frame yet
+			bool isEndNotInNewFrame = (xEnd < ((int)((n - 1)*midiUnitsPerFrame*midi2pix) + nPixX));
 
 			bool doHighlightNote = (xStart <= nPixX / 2 + n*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + n*midiUnitsPerFrame*midi2pix);//highlight if spans the central column of pixels
+			bool doHighlightNote_lastFrame = (xStart <= nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix);
 			bool undoHighlightNote = (xStart <= nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && !doHighlightNote;//check if highlighted last frame
 
-			if (xEnd < ((int)(n*midiUnitsPerFrame*midi2pix))) {//assuming time-ordered notes, delete notes from memory that have already been fully used
+			if (xEnd < ((int)(n*midiUnitsPerFrame*midi2pix))) {//assuming time-ordered notes, delete notes from memory that have already been fully used; modify indices in order to take array size change into account
 				trackList.at(i).DeleteNote(j);
+				deletedNotes++;
+				j--;
 				continue;
 			}
 
 			if (isStartNotInNewFrame) break;//assuming time-ordered notes, stop processing this track after get to notes in future
-			if (n!=0 && !doHighlightNote && !undoHighlightNote && isEndNotInNewFrame) continue; //highlight control
+			if (!renderFullFrame && !doHighlightNote && !undoHighlightNote && isEndNotInNewFrame) continue; //highlight control
+			if (!renderFullFrame && doHighlightNote && doHighlightNote_lastFrame) continue;//don't spend time re-highlighting
 
             //prevent overflow if the note starts in the new frame but isn't over before end of new frame
 			if (xEnd > ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX)) xEnd = ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX);
-			
+			//prevent overflow other way if the note starts in the new frame but isn't over before end of new frame
+			if (xStart < (int)(n*midiUnitsPerFrame*midi2pix)) xStart = (int)(n*midiUnitsPerFrame*midi2pix);
+
 			int xStartInFrame = xStart % (nPixX);
 			int xEndInFrame = xEnd % (nPixX);
 
