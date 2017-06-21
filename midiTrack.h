@@ -6,6 +6,7 @@
 class MidiTrack {
 public:
 	int GetEnd();
+	int GetStart();
 	void AddNote(int begin, int end, unsigned char pitch, unsigned char velocity);
 	void DeleteNote(int n);
 	noteDat GetNote(int i);
@@ -75,6 +76,11 @@ int MidiTrack::GetEnd() {
 		if (notes.at(i).end > lastTime) lastTime = notes.at(i).end;
 	}
 	return lastTime;
+}
+
+int MidiTrack::GetStart() {
+	if (notes.size() == 0) return 1000000000;
+	return notes.front().beginning;
 }
 
 void MidiTrack::ClearTrack() {

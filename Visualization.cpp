@@ -19,17 +19,18 @@
 #include <mutex>
 #include <iomanip>
 #include <chrono>
+#include "readWav.cpp"
 
 using namespace cimg_library;
 
-void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrames, int midiUnitsPerFrame, int startingFrame = 0, int endingFrame = 1) {
+void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrames, int midiUnitsPerFrame, std::vector< int >& barLines, int startingFrame = 0, int endingFrame = 1) {
 	std::clock_t start = std::clock();
 	std::vector< std::vector< std::vector < unsigned char > > > imageValues(nPixX, std::vector< std::vector < unsigned char > >(nPixY, std::vector < unsigned char >(3, 0)));
 	for (int n = startingFrame; n < endingFrame; n++) {
 		//std::cout << "Thread " << processID << " rendering frame " << n+1 << " out of " << endingFrame  << ".   (" << (double)(n - startingFrame) / ((std::clock() - start) / (double)CLOCKS_PER_SEC) << " frames/s)" << std::endl;
 
-		if (n == startingFrame) trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, true);
-		else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, false);
+		if (n == startingFrame) trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, true);
+		else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, false);
 
 		//handing data over to Image library
 		CImg<unsigned char> img(nPixX, nPixY, 1, 3);
@@ -78,8 +79,9 @@ void makeVisual(bool doVideo = false)
 
 	//read in text file as notes
 	std::vector< MidiTrack > trackList;
+	std::vector< int > barLines;
 	double duration = 0;
-	readInputFile(temporaryFileName2, trackList, duration);
+	readInputFile(temporaryFileName2, trackList, barLines, duration);
 
 	//some formatting
 	if (doVideo) {
@@ -92,7 +94,7 @@ void makeVisual(bool doVideo = false)
 		std::cout << "Track " << i << " has " << trackList.at(i).GetNumberOfNotes() << " notes." << std::endl;
 		if (trackList.at(i).GetEnd() > lastTime) lastTime = trackList.at(i).GetEnd();
 	}
-	if(calculateLengthBySelf && !doVideo) nPixX = lastTime / 60;
+	if(calculateLengthBySelf && !doVideo) nPixX = lastTime / (60*tempoScale);
 
 	int nFrames = 1, midiUnitsPerFrame = 0;
 	if (doVideo) {
@@ -113,7 +115,7 @@ void makeVisual(bool doVideo = false)
 			lastThreadFrame[i] = startingFrame + (int)(((stopEarly ? stopAfterNFrames + startingFrame : nFrames) - startingFrame)*(i+1) / (double)nThreads);
 			assignedFrames[i] = lastThreadFrame[i] - threadStartingFrame[i];
 			std::cout << "Making thread " << i << " to render frames " << threadStartingFrame[i] << " to " << lastThreadFrame[i] - 1 << std::endl;
-			threads[i] = std::thread(renderThread,i, midiTrackCopies[i], nFrames, midiUnitsPerFrame, threadStartingFrame[i], lastThreadFrame[i]);
+			threads[i] = std::thread(renderThread,i, midiTrackCopies[i], nFrames, midiUnitsPerFrame, barLines, threadStartingFrame[i], lastThreadFrame[i]);
 		}
 
 		std::clock_t messageTimer = std::clock();
@@ -137,18 +139,18 @@ void makeVisual(bool doVideo = false)
 					}
 					totalCompleted += completedFrames[i];
 					totalAssigned += assignedFrames[i];
-					int completedPercent = (int)(100*completedFrames[i] / (double)assignedFrames[i]);
+					int completedPercent = (int)(100 * completedFrames[i] / (double)assignedFrames[i]);
 					std::cout << "Thread " << i << " (Frames " << std::right << std::setw(5) << threadStartingFrame[i] << "--" << std::left << std::setw(5) << lastThreadFrame[i] - 1 << std::right << "): " << std::setw(6) << completedFrames[i] << "/" << std::left << std::setw(6) << assignedFrames[i];
-					std::cout << std::right <<" (" << std::setw(3) << completedPercent << "%)";
-					std::cout << "  " << std::setw(4) << (std::isnan(totalExecutionTime[i]/ completedFrames[i])?" -- ":std::to_string(totalExecutionTime[i] / completedFrames[i])).c_str() << " s/frames." << std::endl;
-					if(completedPercent != 100) std::cout << std::left << std::setfill('=') << std::setw((completedPercent==0)? completedPercent : completedPercent+1) << "|" << ">" << std::setfill(' ') << std::setw(100 - completedPercent - 1) << std::right << "|" << std::endl;
+					std::cout << std::right << " (" << std::setw(3) << completedPercent << "%)";
+					std::cout << "  " << std::setw(4) << (std::isnan(totalExecutionTime[i] / completedFrames[i]) ? " -- " : std::to_string(totalExecutionTime[i] / completedFrames[i])).c_str() << " s/frames." << std::endl;
+					if (completedPercent != 100) std::cout << std::left << std::setfill('=') << std::setw((completedPercent == 0) ? completedPercent : completedPercent + 1) << "|" << ">" << std::setfill(' ') << std::setw(100 - completedPercent - 1) << std::right << "|" << std::endl;
 					else  std::cout << "|" << std::setfill('=') << std::setw(99) << "=" << "|" << std::right << std::setfill(' ') << std::endl;
 					if (i == (nThreads - 1)) {
 						int totalCompletedPercent = (int)(100 * totalCompleted / (double)totalAssigned);
 						std::cout << "\nTotal job: " << ((std::clock() - jobTimer) / (double)CLOCKS_PER_SEC) << " s     ";
 						std::cout << std::setw(6) << totalCompleted << "/" << std::left << std::setw(6) << totalAssigned;
 						std::cout << std::right << " (" << std::setw(3) << totalCompletedPercent << "%)";
-						std::cout << "  " << std::setw(4) << (std::isinf(((std::clock() - jobTimer) / (double)CLOCKS_PER_SEC)/ (double)totalCompleted) ? " -- " : std::to_string(((std::clock() - jobTimer) / (double)CLOCKS_PER_SEC) / (double)totalCompleted)).c_str() << " s/frame." << std::endl;
+						std::cout << "  " << std::setw(4) << (std::isinf(((std::clock() - jobTimer) / (double)CLOCKS_PER_SEC) / (double)totalCompleted) ? " -- " : std::to_string(((std::clock() - jobTimer) / (double)CLOCKS_PER_SEC) / (double)totalCompleted)).c_str() << " s/frame." << std::endl;
 					}
 				}
 				std::cout << std::setfill('-') << std::setw(101) << "-" << std::setfill(' ') << std::endl;
@@ -167,11 +169,18 @@ void makeVisual(bool doVideo = false)
 		std::vector< std::vector< std::vector < unsigned char > > > imageValues(nPixX, std::vector< std::vector < unsigned char > >(nPixY, std::vector < unsigned char >(3, 0)));
 		for (int n = startingFrame; n < (stopEarly ? stopAfterNFrames + startingFrame : nFrames); n++) {
 			if (doVideo) std::cout << "Rendering frame " << n+1 << " out of " << (stopEarly ? stopAfterNFrames + startingFrame : nFrames) << ".   (" << (double)(n - startingFrame) / ((std::clock() - start) / (double)CLOCKS_PER_SEC) << " frames/s)" << std::endl;
-
-			if (!doVideo) trackList2Image(trackList, imageValues);
+			std::cout << n << std::endl;
+			if (!doVideo) {
+				if (n == startingFrame) {
+					trackList2Image(trackList, imageValues, barLines);
+				}
+				else {
+					break;
+				}
+			}
 			else {
-				if (n == startingFrame) trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, true);
-				else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, false);
+				if (n == startingFrame) trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, true);
+				else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, false);
 			}
 
 			//handing data over to Image library
@@ -218,6 +227,11 @@ void makeVisual(bool doVideo = false)
 
 int main()
 {
+	/*std::pair< std::vector< int >, std::pair < std::vector < short >, std::vector < short > > > wavInfo;
+	readWav(wavInfo);
+	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	return 0;*/
+
 	if(!makeVideo || makeImage) makeVisual(false);
 	if(makeVideo) makeVisual(true);
 	std::cout << "FINISHED! \n Press ENTER to continue...";

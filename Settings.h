@@ -5,14 +5,26 @@
 std::string inputFile = "testFiles/FugueMovie/Fugue";
 
 /*TODO
-- remove temporary bitmap if possible (probably hard?)
-- improve highlighting
-- barlines
+---visualization
+- 'minimap' at bottom
+- fix unisons
+- slurs
+- highlighting decays w/ HSV instead of RGB/ instrument and attack differences
+
+
+--- sync w/ real music via FFT
+- uncomment input file line in readWav.cpp
 */
 
-//debugging and useful items
+//generalSettings
+bool doImageVolumeScaling = true;
+bool doVideoVolumeScaling = true;
+double volScaleMax = 0.4;//units of yNoteWidth
+double volMaxModifier = 2;//applied to volScalMax only to increase range on loud end
+
+//debugging and other items
 bool doAlternateFrameBGColor = false;//for frame scrolling debug
-bool stopEarly = false;
+bool stopEarly = true;
 int stopAfterNFrames = 150;
 bool noFrameScanning = false;//false means that every frame image is output with the 0 of hte x axis redefined in order to give smooth video
 
@@ -20,11 +32,13 @@ bool noFrameScanning = false;//false means that every frame image is output with
 bool doMultiThreading = true;
 const int nThreads = 7;
 double timeBetweenThreadUpdates = 20;
-int startingFrame = 3769;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
+int startingFrame = 8000;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
 bool makeVideo = true;
+bool doVideoBarLines = true;
+bool doVideoStaffLines = true;
 int vidnPixX = 1280;
 int vidnPixY = 720;
-int FPS = 25;// 25;
+int FPS = 30;
 bool usedFixedYNoteWidth = false;
 float scrollSpeedFactor = 0.125; //controls the conversion from midi units to pixels (factor*units = pixels)
 								//assuming 480 midiunits/beat and 120 BPM, then we scan at 240 pix/s if this is 1.0
@@ -33,20 +47,22 @@ float scrollSpeedFactor = 0.125; //controls the conversion from midi units to pi
 
 //image settings
 bool makeImage = false;
+bool doImageBarLines = false;
+bool doImageStaffLines = true;
 bool calculateLengthBySelf = true; // overwrites nPixX, only works is doVideo is off
-int nPixX = 2400;
+int nPixX = 2600;
 int nPixY = 600;
 
-int xBufferSize = 50;//not used in video mode
+int xBufferSize = 20;//not used in video mode
 int yBufferSizeTop = 0;//used in video mode
 int yBufferSizeBottom = 0;
 
 //colors for each note, starting with C,C#,D...
 //first index is R,G,B
 const unsigned char colorArrayOffset = 0; //optional thing that 'rotates the colors around by 1 each (from 0-12) if you want to change the aestetics
-unsigned char colorArray[3][12] = { {254,0  ,255,1  ,232,196,15 ,255,0  ,255,99 ,142},
-									{0  ,162,147,15 ,232,0  ,173,101,100,197,1  ,200},
-									{2  ,200,0  ,163,0  ,124,0  ,1  ,180,3  ,166,2  } };
+unsigned char colorArray[3][12] = { {254,0  ,255,63  ,232,196,15 ,255,0  ,255,99 ,142},
+									{0  ,199,147,78 ,232,0  ,173,101,131,197,1  ,200},
+									{2  ,249,0  ,254,0  ,124,0  ,1  ,238,3  ,166,2  } };
 //unsigned char colorArrayLight[3][12] = {	{ 255,38 ,255,18 ,255,255,18 ,254,9  ,255,160,183 },//more white in these colors forhighlighting (otherwise the same)
 //											{ 64 ,211,170,36 ,255,34 ,242,134,145,217,20 ,253 },
 //											{ 64 ,255,55 ,254,130,172,0  ,54 ,255,85 ,254,19 } };
@@ -65,7 +81,7 @@ struct noteDat {
 	unsigned char velocity;
 };
 
-const float tempoScale = 100;
+const float tempoScale = 1000;
 
 //multithreading diagnostic structures
 int assignedFrames[nThreads] = { 0 };

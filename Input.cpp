@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackList, double& duration) {
+void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackList, std::vector< int >& barLines, double& duration) {
 
 	std::string buffer;
 	std::vector<std::string> listOfFiles;
@@ -23,6 +23,8 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 		std::vector< std::pair< std::pair< unsigned char, int >, unsigned char > > notesTurnedOn;
 		std::vector< std::pair< int, double > > tempoList;// time of tempo change, and tempo in BPM
 		int T = 0; //absolute time of the track
+		int beatsPerMeasure = 0;//numerator of time signature
+		int ticksPerBeat = 480;
 
 		while (std::getline(inFile, buffer))
 		{
@@ -48,6 +50,16 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 			if (buffer.find("Time signature") != std::string::npos) {
 				if (buffer.find("# ") != std::string::npos) continue;
 				T += std::stoi(buffer.substr(0, buffer.find("Time signature")));
+				if (T!=0) {
+					for (int t = barLines.back()+ ticksPerBeat*beatsPerMeasure; t <= T; t += ticksPerBeat*beatsPerMeasure) {
+						barLines.push_back(t);
+					}
+				}
+				else {
+					barLines.push_back(0);
+				}
+				beatsPerMeasure = std::stoi(buffer.substr(buffer.find("signature ") + 10, buffer.find("/")));
+				ticksPerBeat = 480 * 4 / (std::stoi(buffer.substr(buffer.find("/") + 1, buffer.find(","))));
 				continue;
 			}
 			/*if (buffer.find("Instrument") != std::string::npos) {//not sure if this is needed later in music w/ instrument changes...
@@ -90,7 +102,12 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 
 			if (buffer.find("End of track") != std::string::npos) {  //close track and put it in list
 				std::cout << "Track Length: " << T << " ticks." << std::endl;
-				if (trackList.size() == 0) tempoList.push_back(std::pair< int, double >(T+1, 1));// end of first track (which has the tempos)
+				if (trackList.size() == 0) {
+					tempoList.push_back(std::pair< int, double >(T + 1, 1));// end of first track (which has the tempos)
+					for (int t = barLines.back() + ticksPerBeat*beatsPerMeasure; t <= T; t += ticksPerBeat*beatsPerMeasure) {
+						barLines.push_back(t);
+					}
+				}
 				trackList.push_back(track);
 				track.ClearTrack();
 				isTrackOpen = false;
@@ -100,7 +117,7 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 		//make a map that scales timestamps from tempo-dependent to a 'global time'
 		std::cout << "\nRescaling times to account for tempo changes...\n" << std::endl;
 		std::vector< unsigned int > tempoMap;
-		int newt = -1;
+		int newt = (int)-tempoScale;
 		for (unsigned int t = 0; t < (unsigned int) tempoList.at(tempoList.size()-1).first; t++) {
 			for (unsigned int i = 0; i < (unsigned int) tempoList.size()-1; i++) {
 				if (t < (unsigned int)tempoList.at(i + 1).first) {
@@ -113,6 +130,10 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 		//use map to rescale tempos of tracks
 		for (unsigned int i = 0; i < trackList.size(); i++){
 			if(trackList.at(i).GetNumberOfNotes() >0) trackList.at(i).RescaleTimesWithTempo(tempoMap);
+		}
+		for (unsigned int i = 0; i < barLines.size(); i++) {
+			barLines.at(i) = tempoMap.at(barLines.at(i));
+			//std::cout << "Barline: " << barLines.at(i) << std::endl;
 		}
 	}
 
