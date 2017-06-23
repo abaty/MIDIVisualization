@@ -7,6 +7,7 @@
 #include "Settings.h"
 #include "midiTrack.h"
 #include "trackList2Image.cpp"
+#include "colorTools.h"
 #include "CImg-2.0.0\CImg.h"
 #include <iostream>  
 #include <limits>
@@ -25,6 +26,12 @@ using namespace cimg_library;
 
 void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrames, int midiUnitsPerFrame, std::vector< int >& barLines, int startingFrame = 0, int endingFrame = 1) {
 	std::clock_t start = std::clock();
+
+	std::vector< std::vector< std::vector < unsigned char > > > miniScoreImageValues(nPixX, std::vector< std::vector < unsigned char > >(miniScoreYPix - 1, std::vector < unsigned char >(3, 0)));
+	if (doMiniScore) {
+		trackList2Image(trackList, miniScoreImageValues, barLines, nPixX, miniScoreYPix - 1);
+	}
+
 	std::vector< std::vector< std::vector < unsigned char > > > imageValues(nPixX, std::vector< std::vector < unsigned char > >(nPixY, std::vector < unsigned char >(3, 0)));
 	for (int n = startingFrame; n < endingFrame; n++) {
 		//std::cout << "Thread " << processID << " rendering frame " << n+1 << " out of " << endingFrame  << ".   (" << (double)(n - startingFrame) / ((std::clock() - start) / (double)CLOCKS_PER_SEC) << " frames/s)" << std::endl;
@@ -33,13 +40,45 @@ void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrame
 		else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, false);
 
 		//handing data over to Image library
-		CImg<unsigned char> img(nPixX, nPixY, 1, 3);
-		for (int y = 0; y < nPixY; y++) {
-			for (int x = 0; x < nPixX; x++) {
-				unsigned char red = 0, green = 0, blue = 0;
-				img(x, y, 0) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(2);//R
-				img(x, y, 1) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(1);//G
-				img(x, y, 2) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(0);//B
+		CImg<unsigned char> img(nPixX, (doMiniScore ? (nPixY + miniScoreYPix) : nPixY), 1, 3);
+		for (int y = 0; y < (doMiniScore ? (nPixY + miniScoreYPix) : nPixY); y++) {
+			if (doMiniScore && y >= nPixY) {//for miniScore
+				if (y == nPixY) {
+					for (int x = 0; x < nPixX; x++) {
+						img(x, y, 0) = miniScoreHighlight[0];
+						img(x, y, 1) = miniScoreHighlight[1];
+						img(x, y, 2) = miniScoreHighlight[2];
+					}
+				}
+				else {
+					int firstX = -9999;
+					double fracDone = n / (double)nFrames;//highlighting position in mini score
+					double fracWindow = (double)(nPixX - 2 * xBufferSize) / (midiUnitsPerFrame*scrollSpeedFactor / tempoScale) /2.0 / (double)nFrames;
+					for (int x = 0; x < nPixX; x++) {
+						unsigned char red = 0, green = 0, blue = 0;
+						img(x, y, 0) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(2);//R
+						img(x, y, 1) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(1);//G
+						img(x, y, 2) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(0);//B
+						if (firstX!=-9999 && ((firstX!=0 && x>=firstX+fracWindow*2*(nPixX - 2 * xBufferSize)) || (firstX==0 && x >= xBufferSize + fracWindow * (nPixX - 2 * xBufferSize)))) continue;
+						if ((x - xBufferSize) / (double)(nPixX - 2 * xBufferSize) >= fracDone - fracWindow)
+						{
+							if (firstX == -9999) firstX = x;
+							if (miniScoreImageValues.at(x).at(y - 1 - nPixY).at(2) == 0 && miniScoreImageValues.at(x).at(y - 1 - nPixY).at(1) == 0 && miniScoreImageValues.at(x).at(y - 1 - nPixY).at(0) == 0) {
+								img(x, y, 0) = miniScoreHighlight[0];
+								img(x, y, 1) = miniScoreHighlight[1];
+								img(x, y, 2) = miniScoreHighlight[2];
+							}
+						}
+					}
+				}
+			}
+			else{
+				for (int x = 0; x < nPixX; x++) {
+					unsigned char red = 0, green = 0, blue = 0;
+					img(x, y, 0) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(2);//R
+					img(x, y, 1) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(1);//G
+					img(x, y, 2) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(0);//B
+				}
 			}
 		}
 		std::string temporaryFileName = "temporary";
@@ -87,6 +126,10 @@ void makeVisual(bool doVideo = false)
 	if (doVideo) {
 		nPixX = vidnPixX;
 		nPixY = vidnPixY;
+		if (doMiniScore) {
+			nPixY = nPixY - miniScoreYPix;
+			doImageStaffLines = false;
+		}
 	}
 
 	int lastTime = 0;
@@ -104,6 +147,12 @@ void makeVisual(bool doVideo = false)
 	}
 
 	nPixX = nPixX % 4 + nPixX; // make sure divisible by 4 for bitmap
+	for (int i = 0; i < 12; i++) hueArray[i] = RGBToHSL(colorArray[0][i],colorArray[1][i], colorArray[2][i]).at(0);
+
+	std::vector< std::vector< std::vector < unsigned char > > > miniScoreImageValues(nPixX, std::vector< std::vector < unsigned char > >(miniScoreYPix-1, std::vector < unsigned char >(3, 0)));
+	if (doMiniScore && !doMultiThreading) {
+		trackList2Image(trackList, miniScoreImageValues, barLines, nPixX, miniScoreYPix-1);
+	}
 
 	//calculate what the image looks like
 	if (doVideo && doMultiThreading) {//make threads
@@ -169,10 +218,9 @@ void makeVisual(bool doVideo = false)
 		std::vector< std::vector< std::vector < unsigned char > > > imageValues(nPixX, std::vector< std::vector < unsigned char > >(nPixY, std::vector < unsigned char >(3, 0)));
 		for (int n = startingFrame; n < (stopEarly ? stopAfterNFrames + startingFrame : nFrames); n++) {
 			if (doVideo) std::cout << "Rendering frame " << n+1 << " out of " << (stopEarly ? stopAfterNFrames + startingFrame : nFrames) << ".   (" << (double)(n - startingFrame) / ((std::clock() - start) / (double)CLOCKS_PER_SEC) << " frames/s)" << std::endl;
-			std::cout << n << std::endl;
 			if (!doVideo) {
 				if (n == startingFrame) {
-					trackList2Image(trackList, imageValues, barLines);
+					trackList2Image(trackList, imageValues, barLines, nPixX, nPixY);
 				}
 				else {
 					break;
@@ -185,20 +233,56 @@ void makeVisual(bool doVideo = false)
 
 			//handing data over to Image library
 			if (!doVideo) std::cout << "\nMaking Image..." << std::endl;
-			CImg<unsigned char> img(nPixX, nPixY, 1, 3);
-			for (int y = 0; y < nPixY; y++) {
-				for (int x = 0; x < nPixX; x++) {
-					unsigned char red = 0, green = 0, blue = 0;
-					if (!doVideo || noFrameScanning) {
-						img(x, y, 0) = imageValues.at(x).at(y).at(2);//R
-						img(x, y, 1) = imageValues.at(x).at(y).at(1);//G
-						img(x, y, 2) = imageValues.at(x).at(y).at(0);//B
+			bool hasMiniScore = (doMiniScore && doVideo);
+			CImg<unsigned char> img(nPixX, (hasMiniScore?(nPixY+miniScoreYPix): nPixY), 1, 3);
+			for (int y = 0; y < (hasMiniScore ?  (nPixY + miniScoreYPix) : nPixY); y++) {
+				if (hasMiniScore && y >= nPixY) {//for miniScore
+					if (y == nPixY) {
+						for (int x = 0; x < nPixX; x++) {
+							img(x, y, 0) = miniScoreHighlight[0];
+							img(x, y, 1) = miniScoreHighlight[1];
+							img(x, y, 2) = miniScoreHighlight[2];
+						}
 					}
-					else
-					{
-						img(x, y, 0) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(2);//R
-						img(x, y, 1) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(1);//G
-						img(x, y, 2) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(0);//B
+					else {
+						int firstX = -9999;
+						double fracDone = n / (double)nFrames;//highlighting position in mini score
+						double fracWindow = (double)(nPixX-2*xBufferSize) / (midiUnitsPerFrame*scrollSpeedFactor / tempoScale) / 2.0 / (double)nFrames;
+						for (int x = 0; x < nPixX; x++) {
+							unsigned char red = 0, green = 0, blue = 0;
+							img(x, y, 0) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(2);//R
+							img(x, y, 1) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(1);//G
+							img(x, y, 2) = miniScoreImageValues.at(x).at(y - 1 - nPixY).at(0);//B
+							//std::cout << n << " " << nFrames << " " << fracDone << std::endl;
+							//std::cout << (x - xBufferSize) / (double)(nPixX - 2 * xBufferSize) << " " << fracDone - fracWindow <<  std::endl;
+							//std::cout << (x - xBufferSize) / (double)(nPixX - 2 * xBufferSize) << " " << fracDone + fracWindow << std::endl;
+							if (firstX != -9999 && ((firstX != 0 && x >= firstX + fracWindow * 2 * (nPixX - 2 * xBufferSize)) || (firstX == 0 && x >= xBufferSize + fracWindow * (nPixX - 2 * xBufferSize)))) continue;
+							if ((x - xBufferSize) / (double)(nPixX - 2 * xBufferSize) >= fracDone - fracWindow)
+							{
+								if (firstX == -9999) firstX = x;
+								if (miniScoreImageValues.at(x).at(y - 1 - nPixY).at(2) == 0 && miniScoreImageValues.at(x).at(y - 1 - nPixY).at(1) == 0 && miniScoreImageValues.at(x).at(y - 1 - nPixY).at(0) == 0) {
+									img(x, y, 0) = miniScoreHighlight[0];
+									img(x, y, 1) = miniScoreHighlight[1];
+									img(x, y, 2) = miniScoreHighlight[2];
+								}
+							}
+						}
+					}
+				}
+				else{
+					for (int x = 0; x < nPixX; x++) {
+						unsigned char red = 0, green = 0, blue = 0;
+						if (!doVideo || noFrameScanning) {
+							img(x, y, 0) = imageValues.at(x).at(y).at(2);//R
+							img(x, y, 1) = imageValues.at(x).at(y).at(1);//G
+							img(x, y, 2) = imageValues.at(x).at(y).at(0);//B
+						}
+						else
+						{
+							img(x, y, 0) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(2);//R
+							img(x, y, 1) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(1);//G
+							img(x, y, 2) = imageValues.at(((int)(n*midiUnitsPerFrame*scrollSpeedFactor / tempoScale + x) % nPixX)).at(y).at(0);//B
+						}
 					}
 				}
 			}

@@ -6,6 +6,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include "colorTools.h"
 
 inline void setColor(unsigned char R, unsigned char G, unsigned char B, int x, int y, std::vector< std::vector< std::vector < unsigned char > > >& imageValues) {
 	std::vector< unsigned char > RGBColorTemp{ B,G,R };
@@ -19,17 +20,21 @@ inline bool isBackground(int x, int y, std::vector< std::vector< std::vector < u
 }
 
 inline bool isAnotherNote(int x, int y, std::vector< std::vector< std::vector < unsigned char > > >& imageValues, int colorIndx) {
-	if (imageValues.at(x).at(y).at(0) == colorArray[2][colorIndx] && imageValues.at(x).at(y).at(1) == colorArray[1][colorIndx] && imageValues.at(x).at(y).at(2) == colorArray[0][colorIndx]) return false;
-	if (imageValues.at(x).at(y).at(0) == colorArrayLight[2][colorIndx] && imageValues.at(x).at(y).at(1) == colorArrayLight[1][colorIndx] && imageValues.at(x).at(y).at(2) == colorArrayLight[0][colorIndx]) return false;
+	//old implementation
+	//if (imageValues.at(x).at(y).at(0) == colorArray[2][colorIndx] && imageValues.at(x).at(y).at(1) == colorArray[1][colorIndx] && imageValues.at(x).at(y).at(2) == colorArray[0][colorIndx]) return false;
+	//if (imageValues.at(x).at(y).at(0) == colorArrayLight[2][colorIndx] && imageValues.at(x).at(y).at(1) == colorArrayLight[1][colorIndx] && imageValues.at(x).at(y).at(2) == colorArrayLight[0][colorIndx]) return false;
+
+	if (fabs(RGBToHSL(imageValues.at(x).at(y).at(2), imageValues.at(x).at(y).at(1), imageValues.at(x).at(y).at(0)).at(0)-hueArray[colorIndx])<0.001) return false;
+
 	return true;
 }
 
 
-void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vector< std::vector < unsigned char > > >& imageValues, std::vector< int >& barLines) {
+void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vector< std::vector < unsigned char > > >& imageValues, std::vector< int >& barLines, int nPixX_, int nPixY_) {
 	//get usable area inside margins
-	std::cout << "Image Mode!" << std::endl;
-	const int xRange = nPixX - 2 * xBufferSize;
-	const int yRange = nPixY - yBufferSizeBottom - yBufferSizeTop;
+	//std::cout << "Image Mode!" << std::endl;
+	const int xRange = nPixX_ - 2 * xBufferSize;
+	const int yRange = nPixY_ - yBufferSizeBottom - yBufferSizeTop;
 
 	//find the total time of the song and the scaling of time to pixels
 	int lastSoundTime = 0;
@@ -60,17 +65,17 @@ void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vect
 
 	//calculate staff lines
 	std::vector< int > staffLines;
-	std::cout << "Calculating Staff Lines" << std::endl;
+	//std::cout << "Calculating Staff Lines" << std::endl;
 	for (int n = 0; n < 10; n++) {
-		staffLines.push_back((int)(nPixY - (((stavePitch[n] - pitchOffset) * yNoteWidth) + yBufferSizeBottom) - yNoteWidth / 2.0));
+		staffLines.push_back((int)(nPixY_ - (((stavePitch[n] - pitchOffset) * yNoteWidth) + yBufferSizeBottom) - yNoteWidth / 2.0));
 	}
 	
 	//set the staff lines
 	if (doImageStaffLines) {
-		for (int y = 0; y < nPixY; y++) {
+		for (int y = 0; y < nPixY_; y++) {
 			if (std::find(staffLines.begin(), staffLines.end(), y) != staffLines.end()) {//check if is a staffline
-				std::cout << "Putting Staff Line..." << std::endl;
-				for (int x = 0; x < nPixX; x++) {
+				//std::cout << "Putting Staff Line..." << std::endl;
+				for (int x = 0; x < nPixX_; x++) {
 					imageValues.at(x).at(y).at(0) = staffColor[0];
 					imageValues.at(x).at(y).at(1) = staffColor[1];
 					imageValues.at(x).at(y).at(2) = staffColor[2];
@@ -92,29 +97,29 @@ void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vect
 		}
 	}
 
-	std::cout << "Initialization Done!" << std::endl;
+	//std::cout << "Initialization Done!" << std::endl;
 
-	std::cout << "Starting to put tracks into image..." << std::endl;
+	//std::cout << "Starting to put tracks into image..." << std::endl;
 	for (unsigned int i = 0; i < trackList.size(); i++) {
 	//for (unsigned int i = 1; i < 2; i++) {
 		int nNotes = trackList.at(i).GetNumberOfNotes();
-		std::cout << "Making image for track " << i << " which has " << nNotes << " notes." << std::endl;
+		//std::cout << "Making image for track " << i << " which has " << nNotes << " notes." << std::endl;
 		for (int j = 0; j < nNotes; j++) {
 		//for (int j = 0; j < 10; j++) {
-			if (j % 100 == 0) std::cout << "     On note " << j << " out of " << nNotes << std::endl;
+			//if (j % 100 == 0) std::cout << "     On note " << j << " out of " << nNotes << std::endl;
 
 			//define length and width of a rectangle to be the note
 			int xStart = (int)(trackList.at(i).GetNote(j).beginning*tScale) + xBufferSize;
 			int xEnd = (int)(trackList.at(i).GetNote(j).end*tScale) + xBufferSize;
 			xEnd = xEnd - (((xEnd-xStart)>2)?1:0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
-			int yEnd = nPixY-((int)((trackList.at(i).GetNote(j).pitch - pitchOffset)*yNoteWidth) + yBufferSizeBottom);
+			int yEnd = nPixY_-((int)((trackList.at(i).GetNote(j).pitch - pitchOffset)*yNoteWidth) + yBufferSizeBottom);
 			int yStart = yEnd - (int)yNoteWidth;
 			unsigned char colorIndx = (trackList.at(i).GetNote(j).pitch + colorArrayOffset) % 12;
 
 			//scale for velocities
 			double volScale = 0;// units of yNoteWidth, level off under 32 or over 96 
 			if (doImageVolumeScaling) volScale = std::min(volScaleMax*volMaxModifier, std::max(-2 * volScaleMax+4 * volScaleMax*trackList.at(i).GetNote(j).velocity / 128.0, -volScaleMax));
-			std::cout << yNoteWidth << " " << volScale << " " << yStart - (int)(volScale*yNoteWidth) << " " << yEnd + (int)volScale*yNoteWidth << std::endl;
+			//std::cout << yNoteWidth << " " << volScale << " " << yStart - (int)(volScale*yNoteWidth) << " " << yEnd + (int)volScale*yNoteWidth << std::endl;
 
 			for (int x = xStart; x < xEnd; x++) {
 				for (int y = yStart - (int)(volScale*yNoteWidth); y < yEnd + (int)(volScale*yNoteWidth); y++) {
@@ -180,7 +185,7 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 
 		unsigned char c = 0;
 		if (doAlternateFrameBGColor) c = (n % FPS) * 255 / (FPS-1);
-		if (boundary1 < boundary2) {
+		if (boundary1 <= boundary2) {
 			for (int x = boundary1; x <= boundary2; x++) {
 				for (int y = 0; y < nPixY; y++) {
 					imageValues.at(x).at(y).at(0) = c;
@@ -247,23 +252,23 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 		int nNotes = trackList.at(i).GetNumberOfNotes();
 		if( nNotes > 0 && !doMultiThreading) std::cout << "     Making image for track " << i << " which has " << nNotes << " remaining notes." << std::endl;
 		int deletedNotes = 0;
-		for (int j = 0; j < nNotes-deletedNotes; j++) {
+		for (int j = 0; j < nNotes - deletedNotes; j++) {
 			//for (int j = 0; j < 10; j++) {//for debug
 			//if (j % 100 == 0) std::cout << " On note " << j+1 << " out of " << nNotes << std::endl;
-		
+
 			//define length and width of a rectangle to be the note
-			int xStart = (int)(trackList.at(i).GetNote(j).beginning*midi2pix +  nPixX/2.0);//in absolute pixels
+			int xStart = (int)(trackList.at(i).GetNote(j).beginning*midi2pix + nPixX / 2.0);//in absolute pixels
 			int xEnd = (int)(trackList.at(i).GetNote(j).end*midi2pix + nPixX / 2.0);//in absolute pixels
-			xEnd = xEnd - (((xEnd - xStart)>2) ? 1 : 0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
-			xEnd = xEnd - (((xEnd - xStart)>5) ? 1 : 0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
-			xEnd = xEnd - (((xEnd - xStart)>10) ? 1 : 0); //subtract 1 extra pixel to put some space for longer notes
-			
-			bool isStartNotInNewFrame = (xStart >((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX));//continue if note is not in new part of frame yet
+			xEnd = xEnd - (((xEnd - xStart) > 2) ? 1 : 0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
+			xEnd = xEnd - (((xEnd - xStart) > 5) ? 1 : 0); //subtract 1 pixel to put some space if there are repeated notes, but don't delete 1 pixel notes
+			xEnd = xEnd - (((xEnd - xStart) > 10) ? 1 : 0); //subtract 1 extra pixel to put some space for longer notes
+
+			bool isStartNotInNewFrame = (xStart > ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX));//continue if note is not in new part of frame yet
 			bool isEndNotInNewFrame = (xEnd < ((int)((n - 1)*midiUnitsPerFrame*midi2pix) + nPixX));
 
 			bool doHighlightNote = (xStart <= nPixX / 2 + n*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + n*midiUnitsPerFrame*midi2pix);//highlight if spans the central column of pixels
-			bool doHighlightNote_lastFrame = (xStart <= nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix);
-			bool undoHighlightNote = (xStart <= nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n-1)*midiUnitsPerFrame*midi2pix) && !doHighlightNote;//check if highlighted last frame
+			bool doHighlightNote_lastFrame = (xStart <= nPixX / 2 + (n - 1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n - 1)*midiUnitsPerFrame*midi2pix);
+			bool undoHighlightNote = (xStart <= nPixX / 2 + (n - 1)*midiUnitsPerFrame*midi2pix) && (xEnd > nPixX / 2 + (n - 1)*midiUnitsPerFrame*midi2pix) && !doHighlightNote;//check if highlighted last frame
 
 			if (xEnd < ((int)(n*midiUnitsPerFrame*midi2pix))) {//assuming time-ordered notes, delete notes from memory that have already been fully used; modify indices in order to take array size change into account
 				trackList.at(i).DeleteNote(j);
@@ -274,9 +279,9 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 
 			if (isStartNotInNewFrame) break;//assuming time-ordered notes, stop processing this track after get to notes in future
 			if (!renderFullFrame && !doHighlightNote && !undoHighlightNote && isEndNotInNewFrame) continue; //highlight control
-			if (!renderFullFrame && doHighlightNote && doHighlightNote_lastFrame) continue;//don't spend time re-highlighting
+			//if (!renderFullFrame && doHighlightNote && doHighlightNote_lastFrame) continue;//don't spend time re-highlighting
 
-            //prevent overflow if the note starts in the new frame but isn't over before end of new frame
+			//prevent overflow if the note starts in the new frame but isn't over before end of new frame
 			if (xEnd > ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX)) xEnd = ((int)((n*midiUnitsPerFrame*midi2pix) - 1) + nPixX);
 			//prevent overflow other way if the note starts in the new frame but isn't over before end of new frame
 			if (xStart < (int)(n*midiUnitsPerFrame*midi2pix)) xStart = (int)(n*midiUnitsPerFrame*midi2pix);
@@ -287,7 +292,13 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 			//y values no different than static image case
 			int yEnd = nPixY - ((int)((trackList.at(i).GetNote(j).pitch - pitchOffset)*yNoteWidth) + yBufferSizeBottom);
 			int yStart = yEnd - (int)yNoteWidth;
+
+			//colors and highlights
 			unsigned char colorIndx = (trackList.at(i).GetNote(j).pitch + colorArrayOffset) % 12;
+			std::vector< unsigned char > highLightColor(3, 0);
+			highLightColor.at(0) = colorArrayLight[0][colorIndx];
+			highLightColor.at(1) = colorArrayLight[1][colorIndx];
+			highLightColor.at(2) = colorArrayLight[2][colorIndx];
 
 			//scale for velocities
 			double volScale = 0;// units of yNoteWidth, level off under 32 or over 112 
@@ -299,7 +310,10 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 					for (int y = yStart - (int)(volScale*yNoteWidth); y < yEnd + (int)(volScale*yNoteWidth); y++) {
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x, y, imageValues)) continue;//avoid color collisions when loud
 						if(!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
-						else setColor(colorArrayLight[0][colorIndx], colorArrayLight[1][colorIndx], colorArrayLight[2][colorIndx], x, y, imageValues);
+						else {
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY?1-fabs(1-(y-(yStart - (int)(volScale*yNoteWidth)))/(double)((1+volScale)*yNoteWidth/2.0)):1, 1, 1);
+							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
+						}
 					}
 				}
 			}
@@ -308,14 +322,20 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 					for (int y = yStart-(int)(volScale*yNoteWidth); y < yEnd + (int)(volScale*yNoteWidth); y++) {
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x, y, imageValues)) continue;//avoid color collisions when loud
 						if (!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
-						else setColor(colorArrayLight[0][colorIndx], colorArrayLight[1][colorIndx], colorArrayLight[2][colorIndx], x, y, imageValues);
+						else {
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
+							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
+						}
 					}
 				}
 				for (int x = xStartInFrame; x < nPixX; x++) {
 					for (int y = yStart - (int)(volScale*yNoteWidth); y < yEnd + (int)(volScale*yNoteWidth); y++) {
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x,y,imageValues)) continue;//avoid color collisions when loud
 						if (!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
-						else setColor(colorArrayLight[0][colorIndx], colorArrayLight[1][colorIndx], colorArrayLight[2][colorIndx], x, y, imageValues);
+						else {
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
+							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
+						}
 					}
 				}
 			}
