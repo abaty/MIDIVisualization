@@ -24,13 +24,8 @@
 
 using namespace cimg_library;
 
-void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrames, int midiUnitsPerFrame, std::vector< int >& barLines, int startingFrame = 0, int endingFrame = 1) {
+void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrames, int midiUnitsPerFrame, std::vector< int >& barLines, std::vector< std::vector< std::vector < unsigned char > > >& miniScoreImageValues,int startingFrame = 0, int endingFrame = 1) {
 	std::clock_t start = std::clock();
-
-	std::vector< std::vector< std::vector < unsigned char > > > miniScoreImageValues(nPixX, std::vector< std::vector < unsigned char > >(miniScoreYPix - 1, std::vector < unsigned char >(3, 0)));
-	if (doMiniScore) {
-		trackList2Image(trackList, miniScoreImageValues, barLines, nPixX, miniScoreYPix - 1);
-	}
 
 	std::vector< std::vector< std::vector < unsigned char > > > imageValues(nPixX, std::vector< std::vector < unsigned char > >(nPixY, std::vector < unsigned char >(3, 0)));
 	for (int n = startingFrame; n < endingFrame; n++) {
@@ -158,13 +153,19 @@ void makeVisual(bool doVideo = false)
 	if (doVideo && doMultiThreading) {//make threads
 		std::thread threads[nThreads];
 		std::vector< MidiTrack > midiTrackCopies[nThreads];
+
+		std::vector< std::vector< std::vector < unsigned char > > > miniScoreImageValues(nPixX, std::vector< std::vector < unsigned char > >(miniScoreYPix - 1, std::vector < unsigned char >(3, 0)));
+		if (doMiniScore) {
+			trackList2Image(trackList, miniScoreImageValues, barLines, nPixX, miniScoreYPix - 1);
+		}
+
 		for (int i = 0; i < nThreads; i++) {
 			midiTrackCopies[i] = trackList;//give it its own memory of midiTrack to work with
 			threadStartingFrame[i] = startingFrame + (int)(((stopEarly ? stopAfterNFrames + startingFrame : nFrames)-startingFrame)*i / (double)nThreads);
 			lastThreadFrame[i] = startingFrame + (int)(((stopEarly ? stopAfterNFrames + startingFrame : nFrames) - startingFrame)*(i+1) / (double)nThreads);
 			assignedFrames[i] = lastThreadFrame[i] - threadStartingFrame[i];
 			std::cout << "Making thread " << i << " to render frames " << threadStartingFrame[i] << " to " << lastThreadFrame[i] - 1 << std::endl;
-			threads[i] = std::thread(renderThread,i, midiTrackCopies[i], nFrames, midiUnitsPerFrame, barLines, threadStartingFrame[i], lastThreadFrame[i]);
+			threads[i] = std::thread(renderThread,i, midiTrackCopies[i], nFrames, midiUnitsPerFrame, barLines, miniScoreImageValues, threadStartingFrame[i], lastThreadFrame[i]);
 		}
 
 		std::clock_t messageTimer = std::clock();

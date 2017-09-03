@@ -118,7 +118,7 @@ void trackList2Image(std::vector< MidiTrack >& trackList, std::vector< std::vect
 
 			//scale for velocities
 			double volScale = 0;// units of yNoteWidth, level off under 32 or over 96 
-			if (doImageVolumeScaling) volScale = std::min(volScaleMax*volMaxModifier, std::max(-2 * volScaleMax+4 * volScaleMax*trackList.at(i).GetNote(j).velocity / 128.0, -volScaleMax));
+			if (doImageVolumeScaling) volScale = std::min(volScaleMax*volMaxModifier, std::max(-2 * volScaleMax+6 * volScaleMax*trackList.at(i).GetNote(j).velocity / 128.0, -volScaleMax));
 			//std::cout << yNoteWidth << " " << volScale << " " << yStart - (int)(volScale*yNoteWidth) << " " << yEnd + (int)volScale*yNoteWidth << std::endl;
 
 			for (int x = xStart; x < xEnd; x++) {
@@ -302,7 +302,7 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 
 			//scale for velocities
 			double volScale = 0;// units of yNoteWidth, level off under 32 or over 112 
-			if(doVideoVolumeScaling) volScale = std::min(volScaleMax*volMaxModifier,std::max(-2*volScaleMax+4*volScaleMax*trackList.at(i).GetNote(j).velocity/128.0,-volScaleMax));
+			if(doVideoVolumeScaling) volScale = std::min(volScaleMax*volMaxModifier,std::max(-2*volScaleMax+6*volScaleMax*trackList.at(i).GetNote(j).velocity/128.0,-volScaleMax));
 
 			//put new notes into frame
 			if (xStartInFrame <= xEndInFrame) {
@@ -311,7 +311,7 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x, y, imageValues)) continue;//avoid color collisions when loud
 						if(!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
 						else {
-							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY?1-fabs(1-(y-(yStart - (int)(volScale*yNoteWidth)))/(double)((1+volScale)*yNoteWidth/2.0)):1, 1, 1);
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart), (double)(xEnd - xStart), doHighlightAttenuationInY?1-fabs(1-(y-(yStart - (int)(volScale*yNoteWidth)))/(double)((1+volScale)*yNoteWidth/2.0)):1, 1, 1);
 							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
 						}
 					}
@@ -323,7 +323,7 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x, y, imageValues)) continue;//avoid color collisions when loud
 						if (!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
 						else {
-							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart), (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
 							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
 						}
 					}
@@ -333,7 +333,7 @@ void trackList2Video(std::vector< MidiTrack >& trackList, std::vector< std::vect
 						if ((y < yStart || y >= yEnd) && isAnotherNote(x, y, imageValues, colorIndx) && !isBackground(x,y,imageValues)) continue;//avoid color collisions when loud
 						if (!doHighlightNote) setColor(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], x, y, imageValues);
 						else {
-							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart) / (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
+							if (doHighlightDecay) highLightColor = decayRGBValue(colorArray[0][colorIndx], colorArray[1][colorIndx], colorArray[2][colorIndx], (nPixX / 2 + n*midiUnitsPerFrame*midi2pix - xStart),  (double)(xEnd - xStart), doHighlightAttenuationInY ? 1 - fabs(1 - (y - (yStart - (int)(volScale*yNoteWidth))) / (double)((1 + volScale)*yNoteWidth / 2.0)) : 1, 1, 1);
 							setColor(highLightColor.at(0), highLightColor.at(1), highLightColor.at(2), x, y, imageValues);
 						}
 					}

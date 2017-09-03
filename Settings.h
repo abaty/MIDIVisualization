@@ -2,13 +2,15 @@
 #include<string>
 #include<mutex>
 
-std::string inputFile = "testFiles/FugueMovie/Fugue";
+//std::string inputFile = "testFiles/FugueMovie/Fugue";
+std::string inputFile = "testFiles/Meditation7_in_FSharpMinor/Meditation7";
 
 /*TODO
 ---visualization
 - fix unisons
-- slurs
+- slurs/continuations, something moving between connected notes/parts
 - make played notes change size?
+- fix overlaps on things half a note apart (again)
 
 --- sync w/ real music via FFT
 - uncomment input file line in readWav.cpp
@@ -24,34 +26,34 @@ bool doHighlightAttenuationInY = false;
 bool doVideoBarLines = true;
 bool doVideoStaffLines = true;
 bool doMiniScore = true;
-int miniScoreYPix = 180;
+int miniScoreYPix = 120;
 bool usedFixedYNoteWidth = false;
 
 //debugging and other items
 bool doAlternateFrameBGColor = false;//for frame scrolling debug
 bool stopEarly = false;
-int stopAfterNFrames = 100;
+int stopAfterNFrames = 300;
 bool noFrameScanning = false;//false means that every frame image is output with the 0 of hte x axis redefined in order to give smooth video
 								//do not use w/ doMiniScore
 
 //video settings
 bool doMultiThreading = true;
-const int nThreads = 8;
+const int nThreads = 6;
 double timeBetweenThreadUpdates = 20;
 int startingFrame = 0;//used if you want to start from a mid-point (due to failure or something, otherwise leave at 0)
 bool makeVideo = true;
-//int vidnPixX = 1280;
-//int vidnPixY = 720;
-int vidnPixX = 1920;
-int vidnPixY = 1080;
+int vidnPixX = 1280;
+int vidnPixY = 720;
+//int vidnPixX = 1920;
+//int vidnPixY = 1080;
 int FPS = 60;
-float scrollSpeedFactor = 0.125*3./2.0; //controls the conversion from midi units to pixels (factor*units = pixels)
+float scrollSpeedFactor = 0.125;// *3. / 2.0; //controls the conversion from midi units to pixels (factor*units = pixels)
 								//assuming 480 midiunits/beat and 120 BPM, then we scan at 240 pix/s if this is 1.0
 								//higher value = faster scanning (less notes at one time), lower = slower
 								//best results with a lower value usually
 
 //image settings
-bool makeImage = false;
+bool makeImage = true;
 bool doImageBarLines = false;
 bool doImageStaffLines = true;
 bool calculateLengthBySelf = true; // overwrites nPixX, only works is doVideo is off

@@ -71,11 +71,20 @@ std::vector< unsigned char > HSLToRGB(double H, double S, double L) {
 	return RGB;
 }
 
-std::vector< unsigned char > decayRGBValue(unsigned char R, unsigned char G, unsigned char B, double elapsedFrac, double otherScaling = 1, double initialL = 1, double nTaus = 2.5) {
+std::vector< unsigned char > decayRGBValue(unsigned char R, unsigned char G, unsigned char B, double elapsedFracNum, double elapsedFracDenom, double otherScaling = 1, double initialL = 1, double nTaus = 2.5) {
 	//decays the intensity from white to the original value with exponential decay
 	//nTau controls the strength of decay (higher=faster)
 	std::vector< double > HSL = RGBToHSL(R, G, B);
 	double max = fmax(HSL.at(2), initialL);
-	HSL.at(2) += otherScaling*(max - HSL.at(2))*pow(2.718, -elapsedFrac*nTaus); //replace L with something lighter
+	//HSL.at(2) += otherScaling*(max - HSL.at(2))*pow(2.718, -elapsedFracNum/elapsedFracDenom*nTaus); //replace L with something lighter, exponential decay
+	if (elapsedFracDenom < 10) {
+		HSL.at(2) += otherScaling*(max - HSL.at(2));
+	}
+	else if (elapsedFracDenom < 30) {
+		HSL.at(2) += otherScaling*(max - HSL.at(2))*((elapsedFracNum / elapsedFracDenom<0.5)?1:(1 - elapsedFracNum / elapsedFracDenom));
+	}
+	else {
+		HSL.at(2) += otherScaling*(max - HSL.at(2))*(1 - elapsedFracNum / elapsedFracDenom);//replace L with something lighter, linear decay
+	}
 	return HSLToRGB(HSL.at(0), HSL.at(1), HSL.at(2));
 }

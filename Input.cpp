@@ -72,6 +72,10 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 				T += std::stoi(buffer.substr(0, buffer.find("Key")));
 				continue;
 			}
+			if (buffer.find("ST &B") != std::string::npos) {//sustain pedal stuff
+				T += std::stoi(buffer.substr(0, buffer.find("ST &B")));
+				continue;
+			}
 
 			if (buffer.find(" n=") != std::string::npos) {                //line designating a note turning on or off
 				if (buffer.find("v=") == std::string::npos) {                //if it is turning off (no velocity specified)
