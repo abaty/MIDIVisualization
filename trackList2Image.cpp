@@ -5,7 +5,6 @@
 #include <limits>
 #include <vector>
 #include <cmath>
-#include <algorithm>
 #include "colorTools.h"
 
 inline void setColor(unsigned char R, unsigned char G, unsigned char B, int x, int y, std::vector< std::vector< std::vector < unsigned char > > >& imageValues) {

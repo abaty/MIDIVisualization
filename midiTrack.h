@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 class MidiTrack {
 public:
@@ -20,10 +21,12 @@ public:
 	void RescaleTimesWithTempo(std::vector< unsigned int > map);
 	void ClearTrack();
 
+	void sortByBeginning();
+
 	MidiTrack();
 	~MidiTrack();
 private:
-	std::vector< noteDat > notes; //should be sorted first to last by when notes TURN OFF
+	std::vector< noteDat > notes; //should be sorted first to last by when notes TURN OFF, unless sorted by sortByBeginning
 	int nNotes;
 	unsigned char highestNote;
 	unsigned char lowestNote;
@@ -85,6 +88,10 @@ int MidiTrack::GetStart() {
 
 void MidiTrack::ClearTrack() {
 	notes.clear();
+}
+
+void MidiTrack::sortByBeginning() {
+	std::sort(notes.begin(), notes.end());
 }
 
 MidiTrack::MidiTrack() {

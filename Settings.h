@@ -3,7 +3,7 @@
 #include<mutex>
 
 //std::string inputFile = "testFiles/FugueMovie/Fugue";
-std::string inputFile = "testFiles/Meditation7_in_FSharpMinor/Meditation7";
+std::string inputFile = "testFiles/Dvorak_CzechSuite/Dvorak_Czech_Suite6";
 
 /*TODO
 ---visualization
@@ -32,7 +32,7 @@ bool usedFixedYNoteWidth = false;
 //debugging and other items
 bool doAlternateFrameBGColor = false;//for frame scrolling debug
 bool stopEarly = false;
-int stopAfterNFrames = 300;
+int stopAfterNFrames = 100;
 bool noFrameScanning = false;//false means that every frame image is output with the 0 of hte x axis redefined in order to give smooth video
 								//do not use w/ doMiniScore
 
@@ -83,11 +83,15 @@ unsigned char stavePitch[10] = {43,47,50,53,57,64,67,71,74,77};
 unsigned char miniScoreHighlight[3] = {50,50,50};
 
 //note struct
-struct noteDat {
+class noteDat {
+public:
 	int beginning;
 	int end;
 	unsigned char pitch;
 	unsigned char velocity;
+	bool operator< (const noteDat &other) const {
+		return beginning < other.beginning;
+	}
 };
 
 const float tempoScale = 1000;

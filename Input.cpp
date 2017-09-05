@@ -5,6 +5,8 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <algorithm>
+
 
 void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackList, std::vector< int >& barLines, double& duration) {
 
@@ -133,7 +135,10 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 		}
 		//use map to rescale tempos of tracks
 		for (unsigned int i = 0; i < trackList.size(); i++){
-			if(trackList.at(i).GetNumberOfNotes() >0) trackList.at(i).RescaleTimesWithTempo(tempoMap);
+			if (trackList.at(i).GetNumberOfNotes() > 0) {
+				trackList.at(i).RescaleTimesWithTempo(tempoMap);
+				trackList.at(i).sortByBeginning();
+			}
 		}
 		for (unsigned int i = 0; i < barLines.size(); i++) {
 			barLines.at(i) = tempoMap.at(barLines.at(i));
