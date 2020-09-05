@@ -70,7 +70,7 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 				continue;
 			}*/
 			if (buffer.find("Key") != std::string::npos) {
-				if (buffer.find("# ") != std::string::npos) continue;
+				if (buffer.find("# ") == 0) continue;
 				T += std::stoi(buffer.substr(0, buffer.find("Key")));
 				continue;
 			}
@@ -140,15 +140,16 @@ void readInputFile(std::string inputFileName, std::vector< MidiTrack >& trackLis
 				trackList.at(i).sortByBeginning();
 			}
 		}
+
 		for (unsigned int i = 0; i < barLines.size(); i++) {
 			barLines.at(i) = tempoMap.at(barLines.at(i));
-			//std::cout << "Barline: " << barLines.at(i) << std::endl;
+			std::cout << "Barline: " << barLines.at(i) << std::endl;
 		}
 	}
 
 	/*for (unsigned int i = 0; i < trackList.at(25).GetNumberOfNotes(); i++) {
 		std::cout << i << " " << trackList.at(25).GetNote(i).pitch << " " << trackList.at(25).GetNote(i).pitch << " " << trackList.at(25).GetNote(i).beginning << " " << trackList.at(25).GetNote(i).end << std::endl;
 	}*/
-
+	std::cout << "input done" << std::endl;
 	return;
 }

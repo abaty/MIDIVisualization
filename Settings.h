@@ -3,7 +3,8 @@
 #include<mutex>
 
 //std::string inputFile = "testFiles/FugueMovie/Fugue";
-std::string inputFile = "testFiles/Dvorak_CzechSuite/Dvorak_Czech_Suite6";
+//std::string inputFile = "testFiles/overlapTest/overlapTest";
+std::string inputFile = "testFiles/HolstStPaulSuiteMvt2/HolstStPaulSuiteMvt2";
 
 /*TODO
 ---visualization
@@ -25,14 +26,15 @@ bool doHighlightDecay = true;
 bool doHighlightAttenuationInY = false;
 bool doVideoBarLines = true;
 bool doVideoStaffLines = true;
+bool doOutlineNotes = true;
 bool doMiniScore = true;
 int miniScoreYPix = 120;
 bool usedFixedYNoteWidth = false;
 
 //debugging and other items
 bool doAlternateFrameBGColor = false;//for frame scrolling debug
-bool stopEarly = false;
-int stopAfterNFrames = 100;
+bool stopEarly = true;
+int stopAfterNFrames = 200;
 bool noFrameScanning = false;//false means that every frame image is output with the 0 of hte x axis redefined in order to give smooth video
 								//do not use w/ doMiniScore
 
@@ -47,7 +49,7 @@ int vidnPixY = 720;
 //int vidnPixX = 1920;
 //int vidnPixY = 1080;
 int FPS = 60;
-float scrollSpeedFactor = 0.125;// *3. / 2.0; //controls the conversion from midi units to pixels (factor*units = pixels)
+float scrollSpeedFactor =  0.10;//0.125;// *3. / 2.0; //controls the conversion from midi units to pixels (factor*units = pixels)
 								//assuming 480 midiunits/beat and 120 BPM, then we scan at 240 pix/s if this is 1.0
 								//higher value = faster scanning (less notes at one time), lower = slower
 								//best results with a lower value usually
@@ -89,6 +91,8 @@ public:
 	int end;
 	unsigned char pitch;
 	unsigned char velocity;
+	int isOverlap = 0;
+	int isSofter = 0;
 	bool operator< (const noteDat &other) const {
 		return beginning < other.beginning;
 	}

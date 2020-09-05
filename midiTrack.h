@@ -23,6 +23,9 @@ public:
 
 	void sortByBeginning();
 
+	void setOverlap(int n, int j);
+	void setIsSofter(int n, int j);
+
 	MidiTrack();
 	~MidiTrack();
 private:
@@ -32,6 +35,15 @@ private:
 	unsigned char lowestNote;
 	int shortestNoteLength;
 };
+
+void MidiTrack::setOverlap(int n, int j) {
+	notes.at(n).isOverlap = j;
+	return;
+}
+void MidiTrack::setIsSofter(int n, int j) {
+	notes.at(n).isSofter = j;
+	return;
+}
 
 void MidiTrack::AddNote(int begin, int end, unsigned char pitch, unsigned char velocity) {
 	noteDat n;

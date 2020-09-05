@@ -34,6 +34,7 @@ void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrame
 		if (n == startingFrame) trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, true);
 		else     trackList2Video(trackList, imageValues, n, nFrames, midiUnitsPerFrame, barLines, false);
 
+		//std::clock_t start2 = std::clock();
 		//handing data over to Image library
 		CImg<unsigned char> img(nPixX, (doMiniScore ? (nPixY + miniScoreYPix) : nPixY), 1, 3);
 		for (int y = 0; y < (doMiniScore ? (nPixY + miniScoreYPix) : nPixY); y++) {
@@ -76,6 +77,10 @@ void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrame
 				}
 			}
 		}
+
+		//double runTime2 = (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+		//std::cout << "processing img time before save:" << runTime2 << std::endl;
+
 		std::string temporaryFileName = "temporary";
 		temporaryFileName.append(std::to_string(processID));
 		temporaryFileName.append(".bmp");
@@ -93,6 +98,9 @@ void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrame
 		temporaryFileName += std::to_string(100000 + n);//add 100000 just to ensure all have same number of sig figs (poor man's way)
 		lodepng::save_file(png, temporaryFileName.append(".png").data());
 
+		//runTime2 = (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+		//std::cout << "processing img time after save:" << runTime2 << std::endl;
+
 		completed.lock();
 		completedFrames[processID]++;
 		completed.unlock();
@@ -104,6 +112,7 @@ void renderThread(int processID, std::vector< MidiTrack >& trackList, int nFrame
 
 void makeVisual(bool doVideo = false)
 {
+	std::cin.get();
 	//convert MIDI to text file
 	std::string temporaryFileName = inputFile;
 	std::string temporaryFileName2 = inputFile;
@@ -111,11 +120,15 @@ void makeVisual(bool doVideo = false)
 	Midi2Ascii(temporaryFileName.append(".mid"), temporaryFileName2.append(".txt"));
 	std::cout << "Finished With MIDI File" << std::endl;
 
+	std::cin.get();
+
 	//read in text file as notes
 	std::vector< MidiTrack > trackList;
 	std::vector< int > barLines;
 	double duration = 0;
 	readInputFile(temporaryFileName2, trackList, barLines, duration);
+
+	std::cin.get();
 
 	//some formatting
 	if (doVideo) {
@@ -132,6 +145,49 @@ void makeVisual(bool doVideo = false)
 		std::cout << "Track " << i << " has " << trackList.at(i).GetNumberOfNotes() << " notes." << std::endl;
 		if (trackList.at(i).GetEnd() > lastTime) lastTime = trackList.at(i).GetEnd();
 	}
+	//checking for overlapping notes
+	std::cout << "Checking for overlapping notes" << std::endl;
+	for (unsigned int i = 0; i < trackList.size(); i++) {
+		for (unsigned int k = 0; k < trackList.at(i).GetNumberOfNotes(); k++) {
+			for (unsigned int j = i; j < trackList.size(); j++) {
+				for (unsigned int k2 = 0; k2 < trackList.at(j).GetNumberOfNotes(); k2++) {
+					if (trackList.at(i).GetNote(k).end <= trackList.at(j).GetNote(k2).beginning) continue;
+					if (trackList.at(i).GetNote(k).beginning >= trackList.at(j).GetNote(k2).end) continue;
+					if (trackList.at(i).GetNote(k).pitch != trackList.at(j).GetNote(k2).pitch) continue;
+					if (i == j && k == k2) continue;
+					//1 = starts after (left border needed)
+					//2 = ends before (right border needed)
+					//3 = 1+2
+					if (trackList.at(i).GetNote(k).velocity < trackList.at(j).GetNote(k2).velocity) trackList.at(i).setIsSofter(k, 1);
+					if (trackList.at(i).GetNote(k).velocity > trackList.at(j).GetNote(k2).velocity) trackList.at(j).setIsSofter(k2, 1);
+					if (trackList.at(i).GetNote(k).beginning > trackList.at(j).GetNote(k2).beginning) {
+						trackList.at(i).setOverlap(k, 1);
+					}
+					else if(trackList.at(i).GetNote(k).beginning < trackList.at(j).GetNote(k2).beginning) {
+						trackList.at(j).setOverlap(k2, 1);
+					}
+
+					if (trackList.at(i).GetNote(k).end > trackList.at(j).GetNote(k2).end) {
+						trackList.at(j).setOverlap(k2, 2);
+					}
+					else if (trackList.at(i).GetNote(k).end < trackList.at(j).GetNote(k2).end) {
+						trackList.at(i).setOverlap(k, 2);
+					}
+
+					if (trackList.at(i).GetNote(k).beginning > trackList.at(j).GetNote(k2).beginning && trackList.at(i).GetNote(k).end < trackList.at(j).GetNote(k2).end) {
+						trackList.at(i).setOverlap(k, 3);
+					}
+
+					if (trackList.at(i).GetNote(k).beginning < trackList.at(j).GetNote(k2).beginning && trackList.at(i).GetNote(k).end > trackList.at(j).GetNote(k2).end) {
+						trackList.at(j).setOverlap(k2, 3);
+					}
+
+				}
+			}
+		}
+	}
+
+
 	if(calculateLengthBySelf && !doVideo) nPixX = lastTime / (60*tempoScale);
 
 	int nFrames = 1, midiUnitsPerFrame = 0;
@@ -317,7 +373,11 @@ int main()
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	return 0;*/
 
+	std::cin.get();
+
 	if(!makeVideo || makeImage) makeVisual(false);
+	std::cin.get();
+
 	if(makeVideo) makeVisual(true);
 	std::cout << "FINISHED! \n Press ENTER to continue...";
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
